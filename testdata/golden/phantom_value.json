@@ -1,0 +1,22 @@
+{
+  "verdict": "non-linearizable",
+  "pattern": "phantom_value",
+  "summary": "Read (op 0) returned 42, but no write of 42 appears anywhere in the history and the initial value was 0.",
+  "witness": {
+    "model": "register",
+    "init": 0,
+    "ops": [
+      {"id": 0, "client": 0, "type": "read", "value": 42, "call": 0, "return": 10}
+    ]
+  },
+  "conflicts": [
+    {
+      "op_ids": [0],
+      "why": "No write produced the value 42; reading it implies a value materialized from outside the recorded history."
+    }
+  ],
+  "suggestions": [
+    "Check for uninitialized memory or buffer-reuse bugs in the client serialization path",
+    "Check for response routing — could op 0 have received another op's response?"
+  ]
+}

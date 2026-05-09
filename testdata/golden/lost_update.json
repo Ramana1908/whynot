@@ -1,0 +1,24 @@
+{
+  "verdict": "non-linearizable",
+  "pattern": "lost_update",
+  "summary": "Read (op 2) returned 1, but two writes (ops 0, 1) had completed; the second write's effect (value 2) is not visible.",
+  "witness": {
+    "model": "register",
+    "init": 0,
+    "ops": [
+      {"id": 0, "client": 0, "type": "write", "value": 1, "call":  0, "return": 10},
+      {"id": 1, "client": 1, "type": "write", "value": 2, "call": 20, "return": 30},
+      {"id": 2, "client": 2, "type": "read",  "value": 1, "call": 40, "return": 50}
+    ]
+  },
+  "conflicts": [
+    {
+      "op_ids": [0, 1, 2],
+      "why": "Both writes returned before the read started (op 0 at t=10, op 1 at t=30); the read at t=40 returned 1, ignoring op 1's update of 2."
+    }
+  ],
+  "suggestions": [
+    "Check for last-write-wins races without proper synchronization",
+    "Check for read-from-stale-replica that hasn't seen op 1"
+  ]
+}

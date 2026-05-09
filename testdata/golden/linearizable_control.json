@@ -1,0 +1,4 @@
+{
+  "verdict": "linearizable",
+  "summary": "History is linearizable."
+}

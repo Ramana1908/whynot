@@ -1,0 +1,23 @@
+{
+  "verdict": "non-linearizable",
+  "pattern": "realtime_inversion",
+  "summary": "Read (op 1) returned 2 at t=[20,30], but the only write of 2 (op 2) did not start until t=40 — the read would have to be ordered after a write that did not yet exist.",
+  "witness": {
+    "model": "register",
+    "init": 0,
+    "ops": [
+      {"id": 1, "client": 1, "type": "read",  "value": 2, "call": 20, "return": 30},
+      {"id": 2, "client": 2, "type": "write", "value": 2, "call": 40, "return": 50}
+    ]
+  },
+  "conflicts": [
+    {
+      "op_ids": [1, 2],
+      "why": "Op 1 (read of 2) finished at t=30, but op 2 (the only write of 2) started at t=40; real-time precedence forces op 1 before op 2, so op 1 cannot have observed op 2's write."
+    }
+  ],
+  "suggestions": [
+    "Check the clock source feeding the history — apparent time travel is often a clock skew artifact",
+    "Check for replay/retry logic returning the response of a future operation"
+  ]
+}

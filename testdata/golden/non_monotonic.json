@@ -1,0 +1,25 @@
+{
+  "verdict": "non-linearizable",
+  "pattern": "non_monotonic_read",
+  "summary": "Client 1 read 2 (op 2) and then read 1 (op 3); the second read sees a value that was overwritten before the first read.",
+  "witness": {
+    "model": "register",
+    "init": 0,
+    "ops": [
+      {"id": 0, "client": 0, "type": "write", "value": 1, "call":  0, "return": 10},
+      {"id": 1, "client": 0, "type": "write", "value": 2, "call": 20, "return": 30},
+      {"id": 2, "client": 1, "type": "read",  "value": 2, "call": 40, "return": 50},
+      {"id": 3, "client": 1, "type": "read",  "value": 1, "call": 60, "return": 70}
+    ]
+  },
+  "conflicts": [
+    {
+      "op_ids": [2, 3],
+      "why": "Within a single client (client 1), op 2 returned 2 (the post-op-1 state) but op 3, started later, returned 1 (the pre-op-1 state). State cannot move backwards from a client's perspective."
+    }
+  ],
+  "suggestions": [
+    "Check for client routing that fails over to a stale replica between requests",
+    "Check for read-your-writes session guarantees being violated"
+  ]
+}

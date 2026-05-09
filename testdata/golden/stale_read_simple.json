@@ -1,0 +1,23 @@
+{
+  "verdict": "non-linearizable",
+  "pattern": "stale_read",
+  "summary": "Read (op 1) returned 0, but write of 1 (op 0) had already completed before the read started.",
+  "witness": {
+    "model": "register",
+    "init": 0,
+    "ops": [
+      {"id": 0, "client": 0, "type": "write", "value": 1, "call": 0, "return": 10},
+      {"id": 1, "client": 1, "type": "read",  "value": 0, "call": 20, "return": 30}
+    ]
+  },
+  "conflicts": [
+    {
+      "op_ids": [0, 1],
+      "why": "Write of 1 returned at t=10; read started at t=20 and must see a value at least as new as 1, but returned 0."
+    }
+  ],
+  "suggestions": [
+    "Check for stale replica reads (read-from-follower without quorum)",
+    "Check for missed cache invalidation between the writer and reader"
+  ]
+}
