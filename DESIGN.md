@@ -435,3 +435,62 @@ This lands `testdata/` with a clear specification of what each pattern
 3. Whether `BlockReason.State` should be `any` (current) or
    `string` (rendered via `DescribeState`). `any` is more flexible,
    `string` is JSON-friendly. Probably switch to a struct with both.
+
+---
+
+## 12. Day 2 findings
+
+**Decision: stay on the public Porcupine API.** The
+`PartialLinearizationsOperations()` accessor gives us enough to
+populate `RejectionTrace` for register and counter histories. No fork
+needed. This closes question § 11.1.
+
+**`BlockReason.State` is now `string` (StateDesc).** The state is only
+ever consumed for rendering and pattern matching against descriptions
+of state, so the loss of the typed state value is not material.
+Closes § 11.3.
+
+**Surprising finding: `ConstraintRealTimePrecedes` is essentially
+unreachable through Porcupine's public API.** I designed three
+constraint labels (value-mismatch, real-time-precedes,
+concurrent-conflict). The real-time-precedes branch fires only if the
+"best prefix" contains an op `A` such that `A.Call > blocked.Return`.
+Porcupine's search walks the entry list in real-time order; whenever a
+blocked op's call comes first and its `Step` fails, the algorithm
+backtracks past its return and dies — it does not skip ops to reach a
+later prefix that would create the inversion condition. So the longest
+prefix Porcupine reports is always made of ops whose calls happened
+before the blocked op's return.
+
+**Consequence: real-time-inversion patterns must be detected at the
+pattern-matcher layer, not at the constraint-classifier layer.** The
+matcher will reason about pairs of ops in the history directly:
+"there exist `a, b` with `a.Return < b.Call` such that the only
+linearizations consistent with the values placed `b` before `a`."
+The constraint label is downgraded to a low-level signal of *what kind
+of step failure killed the search at this prefix*; it is not a
+description of the violation pattern.
+
+`ConstraintRealTimePrecedes` is kept as a defensive branch (it would
+fire on a non-public-API trace, e.g., if we ever did fork Porcupine).
+But no test currently exercises it, and that is recorded as expected.
+
+**Three constraint labels, with their actual roles:**
+
+- `value-mismatch`: the model's `Step` rejected the blocked op
+  given the state produced by the longest prefix. The prefix may be
+  empty; if so, no establishing write is named in `ConflictWith`. This
+  is the primary signal for stale read, lost update, and phantom
+  value patterns.
+- `concurrent-conflict`: the model would *accept* the blocked op
+  individually after the prefix, but the search couldn't extend
+  further. In practice, this fires for ops downstream of an earlier
+  blocking op — the search backtracked past the bad op and never
+  reached them.
+- `real-time-precedes`: defensive, see above.
+
+**Test coverage on this finding:**
+- `TestCheck_PhantomValue_NoPartials` — empty prefix case.
+- `TestCheck_DownstreamConcurrentConflict` — three-op case where the
+  third op classifies as concurrent-conflict because the bad middle
+  op stops the search.
