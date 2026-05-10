@@ -1,13 +1,19 @@
 // Command genhist runs a Jepsen-style workload against a deliberately
 // buggy in-process register and emits the resulting history as JSON.
 //
-// The bug: writes go to a "leader" replica; reads go to a "follower"
-// replica that lags by a fixed replication delay. A read can return
-// the previous value of the register if it lands in the replication
-// window, producing a stale read.
+// Five bugs are available via -bug:
+//
+//	stale     — single stale-replica read           → stale_read
+//	lost      — two writes, second's effect lost    → lost_update
+//	inversion — clock-skew on the reading client    → realtime_inversion
+//	nmr       — per-client follower flip            → non_monotonic_read
+//	phantom   — buffer-reuse: read returns sentinel → phantom_value
+//	concurrent — original concurrent stale-replica register (timing-dependent)
 //
 // Usage:
-//   go run ./scripts/genhist -out testdata/histories/jepsen_kv.json
+//
+//	go run ./scripts/genhist -bug stale
+//	go run ./scripts/genhist -bug concurrent -out testdata/runs/jepsen_kv.json
 package main
 
 import (
@@ -21,6 +27,55 @@ import (
 
 	"github.com/Ramana1908/whynot/pkg/history"
 )
+
+// generate dispatches to the bug-specific workload.
+func generate(bug string, seed int64) (*history.History, error) {
+	switch bug {
+	case "stale":
+		return runStaleRead(), nil
+	case "lost":
+		return runLostUpdate(), nil
+	case "inversion":
+		return runRealtimeInversion(), nil
+	case "nmr":
+		return runNonMonotonic(), nil
+	case "phantom":
+		return runPhantomValue(), nil
+	case "concurrent":
+		return runConcurrentStaleReplica(seed, 4, 6), nil
+	default:
+		return nil, fmt.Errorf("unknown -bug %q (want: stale|lost|inversion|nmr|phantom|concurrent)", bug)
+	}
+}
+
+func main() {
+	bug := flag.String("bug", "stale", "which bug to simulate: stale|lost|inversion|nmr|phantom|concurrent")
+	out := flag.String("out", "", "output history path (default: testdata/runs/jepsen_<bug>.json)")
+	seed := flag.Int64("seed", 1, "rng seed for the concurrent driver")
+	flag.Parse()
+
+	h, err := generate(*bug, *seed)
+	if err != nil {
+		fail(err)
+	}
+
+	path := *out
+	if path == "" {
+		path = fmt.Sprintf("testdata/runs/jepsen_%s.json", *bug)
+	}
+
+	b, err := json.MarshalIndent(h, "", "  ")
+	if err != nil {
+		fail(err)
+	}
+	b = append(b, '\n')
+	if err := os.WriteFile(path, b, 0644); err != nil {
+		fail(err)
+	}
+	fmt.Printf("wrote %s (%d ops, bug=%s)\n", path, len(h.Ops), *bug)
+}
+
+// --- legacy concurrent driver (kept verbatim for parity) -------------------
 
 type StaleReplicaKV struct {
 	leader   atomic.Int64
@@ -62,28 +117,20 @@ func (r *recorder) record(client int, kind history.OpKind, value int, call, ret 
 	r.mu.Unlock()
 }
 
-func main() {
-	out := flag.String("out", "testdata/runs/jepsen_kv.json", "output history path")
-	clients := flag.Int("clients", 4, "concurrent clients")
-	opsPerClient := flag.Int("ops", 6, "ops per client")
-	delay := flag.Duration("delay", 30*time.Millisecond, "replication delay (the bug)")
-	think := flag.Duration("think", 10*time.Millisecond, "client mean think time between ops")
-	seed := flag.Int64("seed", 1, "rng seed")
-	flag.Parse()
-
-	rng := newDeterministicRand(*seed)
-	kv := &StaleReplicaKV{delay: *delay}
+func runConcurrentStaleReplicaImpl(seed int64, clients, opsPerClient int) *history.History {
+	rng := newDeterministicRand(seed)
+	kv := &StaleReplicaKV{delay: 30 * time.Millisecond}
 	rec := &recorder{t0: time.Now()}
 
 	var wg sync.WaitGroup
-	for c := 0; c < *clients; c++ {
+	for c := 0; c < clients; c++ {
 		wg.Add(1)
 		go func(clientID int) {
 			defer wg.Done()
-			for i := 0; i < *opsPerClient; i++ {
-				time.Sleep(time.Duration(rng.Intn(int(*think))))
+			for i := 0; i < opsPerClient; i++ {
+				time.Sleep(time.Duration(rng.Intn(int(10 * time.Millisecond))))
 				if rng.Intn(2) == 0 {
-					v := clientID*100 + i + 1 // unique per client+iteration
+					v := clientID*100 + i + 1
 					call := time.Now()
 					kv.Write(v)
 					ret := time.Now()
@@ -99,22 +146,11 @@ func main() {
 	}
 	wg.Wait()
 
-	// Sort ops by call time for nicer reading. ID stays stable.
 	rec.mu.Lock()
 	ops := append([]history.Op(nil), rec.ops...)
 	rec.mu.Unlock()
 	sortByCall(ops)
-
-	h := history.History{Model: "register", Init: 0, Ops: ops}
-	b, err := json.MarshalIndent(h, "", "  ")
-	if err != nil {
-		fail(err)
-	}
-	b = append(b, '\n')
-	if err := os.WriteFile(*out, b, 0644); err != nil {
-		fail(err)
-	}
-	fmt.Printf("wrote %s (%d ops, %d clients, replication delay %v)\n", *out, len(ops), *clients, *delay)
+	return &history.History{Model: "register", Init: 0, Ops: ops}
 }
 
 func sortByCall(ops []history.Op) {
@@ -125,18 +161,13 @@ func sortByCall(ops []history.Op) {
 	}
 }
 
-// newDeterministicRand returns an *rand.Rand from math/rand seeded
-// reproducibly. Imported as a small helper so the workload is
-// deterministic given the same seed/clients/ops/delay/think.
-type deterministicRand struct {
-	state int64
-}
+// xorshift, sufficient for sequencing think-time choices in the
+// concurrent driver.
+type deterministicRand struct{ state int64 }
 
 func newDeterministicRand(seed int64) *deterministicRand {
 	return &deterministicRand{state: seed}
 }
-
-// xorshift, sufficient for sequencing think-time choices.
 func (r *deterministicRand) Intn(n int) int {
 	if n <= 0 {
 		return 0

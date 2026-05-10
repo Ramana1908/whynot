@@ -110,16 +110,24 @@ suggestions:
 
 ## Catalogue empirical signal (combined)
 
-Combining the synthetic positive fixtures with `eval/incidents.md`:
+Combining the synthetic positive fixtures with `eval/incidents.md` and
+the per-pattern end-to-end drivers in `scripts/genhist/bugs.go`:
 
-| Pattern              | Synthetic | Jepsen incidents (eval/incidents.md) | End-to-end demo |
-|----------------------|:---------:|:------------------------------------:|:---------------:|
-| `stale_read`         | ✓         | 4                                    |                 |
-| `lost_update`        | ✓         | 3                                    | ✓               |
-| `non_monotonic_read` | ✓         | 1                                    |                 |
-| `phantom_value`      | ✓         | 0 (etcd watch is a weak fit)         |                 |
-| `realtime_inversion` | ✓         | 0                                    |                 |
+| Pattern              | Synthetic | Jepsen incidents (eval/incidents.md) | End-to-end demo (`-bug`) |
+|----------------------|:---------:|:------------------------------------:|:------------------------:|
+| `stale_read`         | ✓         | 4                                    | `stale`                  |
+| `lost_update`        | ✓         | 3                                    | `lost`, `concurrent`     |
+| `non_monotonic_read` | ✓         | 1                                    | `nmr`                    |
+| `phantom_value`      | ✓         | 0 (etcd watch is a weak fit)         | `phantom`                |
+| `realtime_inversion` | ✓         | 0                                    | `inversion`              |
 
-The catalogue is well-supported empirically for the first three
-patterns and has synthetic-only coverage for the last two. See
-`eval/incidents.md` § Findings for the implications.
+Every pattern in the catalogue now has both a synthetic positive
+fixture *and* a deterministic end-to-end driver that reproduces it.
+The `inversion`, `nmr`, and `phantom` drivers model bug shapes that
+are not in the surveyed Jepsen incidents but match well-known
+distributed-systems failure modes (clock skew, sticky-routing flips,
+buffer-reuse / response-routing). See
+`scripts/genhist/main_test.go` for the assertion that each bug fires
+its target pattern through the live pipeline. See `eval/incidents.md`
+§ Findings for the implications of the empirical-only gap on the last
+two patterns.

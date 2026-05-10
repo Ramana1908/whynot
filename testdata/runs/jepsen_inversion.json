@@ -1,0 +1,22 @@
+{
+  "model": "register",
+  "init": 0,
+  "ops": [
+    {
+      "id": 0,
+      "client": 1,
+      "type": "read",
+      "value": 5,
+      "call": 5,
+      "return": 15
+    },
+    {
+      "id": 1,
+      "client": 0,
+      "type": "write",
+      "value": 5,
+      "call": 20,
+      "return": 30
+    }
+  ]
+}

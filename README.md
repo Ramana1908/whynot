@@ -119,6 +119,29 @@ h, _ := pcpadapter.FromOperations(ops, "register", 0, tr)
 Op IDs are taken from `Operation.Metadata` when it's an `int`, otherwise
 the slice index. Output is sorted by `Call` time.
 
+### Importing a Jepsen EDN log
+
+If you already run Jepsen, point `pkg/adapter/jepsen` at an EDN history
+file:
+
+```go
+import (
+    "github.com/Ramana1908/whynot"
+    "github.com/Ramana1908/whynot/pkg/adapter/jepsen"
+)
+
+h, err := jepsen.LoadEDN("history.edn", "register", 0)
+if err != nil { panic(err) }
+expl, _ := whynot.Explain(h)
+```
+
+The parser handles the canonical Jepsen subset: top-level vector or
+line-delimited maps, `:invoke` / `:ok` / `:fail` / `:info` records,
+nemesis processes, comments, and commas-as-whitespace. `:fail` and
+`:info` ops are dropped (they don't sit on the linearization timeline);
+non-integer processes (e.g. `:nemesis`) are skipped. Currently supports
+register and counter workloads — KV/append workloads are future work.
+
 ### As a CLI (any language)
 
 ```sh
@@ -174,6 +197,21 @@ go run ./cmd/explain testdata/runs/jepsen_kv.json
 ```
 
 JSON output: `-format json`.
+
+### Generate end-to-end histories for each pattern
+
+```sh
+# Each command writes testdata/runs/jepsen_<bug>.json
+go run ./scripts/genhist -bug stale       # stale_read
+go run ./scripts/genhist -bug lost        # lost_update
+go run ./scripts/genhist -bug inversion   # realtime_inversion
+go run ./scripts/genhist -bug nmr         # non_monotonic_read
+go run ./scripts/genhist -bug phantom     # phantom_value
+go run ./scripts/genhist -bug concurrent  # legacy timing-driven driver
+```
+
+`scripts/genhist/main_test.go` asserts that each bug fires its target
+pattern through the full whynot pipeline.
 
 ## Pattern catalogue
 
