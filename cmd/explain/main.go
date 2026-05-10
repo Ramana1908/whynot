@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -17,22 +18,32 @@ import (
 )
 
 func main() {
-	format := flag.String("format", "text", "output format: text | json")
-	timeout := flag.Duration("timeout", 30*time.Second, "checker timeout")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [-format text|json] [-timeout DUR] <history.json>\n", os.Args[0])
-		flag.PrintDefaults()
+	os.Exit(run(os.Args[0], os.Args[1:], os.Stdout, os.Stderr))
+}
+
+// run is main() factored to be testable. It returns the process exit code:
+// 0 success, 1 runtime error (load/explain), 2 usage error.
+func run(progName string, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet(progName, flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	format := fs.String("format", "text", "output format: text | json")
+	timeout := fs.Duration("timeout", 30*time.Second, "checker timeout")
+	fs.Usage = func() {
+		fmt.Fprintf(stderr, "usage: %s [-format text|json] [-timeout DUR] <history.json>\n", progName)
+		fs.PrintDefaults()
 	}
-	flag.Parse()
-	if flag.NArg() != 1 {
-		flag.Usage()
-		os.Exit(2)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() != 1 {
+		fs.Usage()
+		return 2
 	}
 
-	h, err := history.Load(flag.Arg(0))
+	h, err := history.Load(fs.Arg(0))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, "error:", err)
+		return 1
 	}
 
 	matchers := make([]explainer.PatternMatcher, 0, len(pattern.All()))
@@ -42,43 +53,44 @@ func main() {
 
 	expl, err := explainer.Explain(h, matchers, *timeout)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, "error:", err)
+		return 1
 	}
 
 	if *format == "json" {
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(expl)
-		return
+		return 0
 	}
-	printText(expl)
+	printText(stdout, expl)
+	return 0
 }
 
-func printText(e *explainer.Explanation) {
-	fmt.Printf("verdict: %s\n", e.Verdict)
+func printText(w io.Writer, e *explainer.Explanation) {
+	fmt.Fprintf(w, "verdict: %s\n", e.Verdict)
 	if e.Pattern != "" {
-		fmt.Printf("pattern: %s\n", e.Pattern)
+		fmt.Fprintf(w, "pattern: %s\n", e.Pattern)
 	}
 	if e.Summary != "" {
-		fmt.Printf("\n%s\n", e.Summary)
+		fmt.Fprintf(w, "\n%s\n", e.Summary)
 	}
 	if len(e.Conflicts) > 0 {
-		fmt.Println("\nconflicts:")
+		fmt.Fprintln(w, "\nconflicts:")
 		for _, c := range e.Conflicts {
-			fmt.Printf("  ops %v:\n    %s\n", c.OpIDs, wrap(c.Why, 76, "    "))
+			fmt.Fprintf(w, "  ops %v:\n    %s\n", c.OpIDs, wrap(c.Why, 76, "    "))
 		}
 	}
 	if e.Witness != nil && len(e.Witness.Ops) > 0 {
-		fmt.Printf("\nwitness (%d op%s):\n", len(e.Witness.Ops), plural(len(e.Witness.Ops)))
+		fmt.Fprintf(w, "\nwitness (%d op%s):\n", len(e.Witness.Ops), plural(len(e.Witness.Ops)))
 		for _, op := range e.Witness.Ops {
-			fmt.Printf("  [t=%d..%d] client %d: %s\n", op.Call, op.Return, op.Client, opStr(op))
+			fmt.Fprintf(w, "  [t=%d..%d] client %d: %s\n", op.Call, op.Return, op.Client, opStr(op))
 		}
 	}
 	if len(e.Suggestions) > 0 {
-		fmt.Println("\nsuggestions:")
+		fmt.Fprintln(w, "\nsuggestions:")
 		for _, s := range e.Suggestions {
-			fmt.Printf("  - %s\n", s)
+			fmt.Fprintf(w, "  - %s\n", s)
 		}
 	}
 }
