@@ -9,9 +9,7 @@ smoking gun, a minimized witness sub-history, and a named pattern
 when the violation matches one of five templates derived from real
 Jepsen incidents.
 
-## Status
-
-Day 7 of a 7-day project. Pipeline is complete:
+## Pipeline
 
 ```
 history.json
