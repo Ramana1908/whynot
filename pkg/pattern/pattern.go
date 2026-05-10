@@ -38,3 +38,14 @@ func All() []Matcher {
 		StaleRead{},
 	}
 }
+
+// AllMatchers is All() returned as a slice of explainer.PatternMatcher so
+// it can be passed directly to explainer.Explain without a manual copy.
+func AllMatchers() []explainer.PatternMatcher {
+	src := All()
+	out := make([]explainer.PatternMatcher, len(src))
+	for i, m := range src {
+		out[i] = m
+	}
+	return out
+}
