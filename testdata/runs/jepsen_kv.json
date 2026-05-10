@@ -1,0 +1,198 @@
+{
+  "model": "register",
+  "init": 0,
+  "ops": [
+    {
+      "id": 0,
+      "client": 3,
+      "type": "read",
+      "value": 0,
+      "call": 2617,
+      "return": 2617
+    },
+    {
+      "id": 1,
+      "client": 0,
+      "type": "read",
+      "value": 0,
+      "call": 4075,
+      "return": 4075
+    },
+    {
+      "id": 2,
+      "client": 1,
+      "type": "read",
+      "value": 0,
+      "call": 7200,
+      "return": 7201
+    },
+    {
+      "id": 3,
+      "client": 2,
+      "type": "write",
+      "value": 201,
+      "call": 7726,
+      "return": 7741
+    },
+    {
+      "id": 4,
+      "client": 3,
+      "type": "write",
+      "value": 302,
+      "call": 8598,
+      "return": 8773
+    },
+    {
+      "id": 5,
+      "client": 1,
+      "type": "write",
+      "value": 102,
+      "call": 10254,
+      "return": 10256
+    },
+    {
+      "id": 6,
+      "client": 0,
+      "type": "read",
+      "value": 0,
+      "call": 11516,
+      "return": 11516
+    },
+    {
+      "id": 7,
+      "client": 0,
+      "type": "read",
+      "value": 0,
+      "call": 11808,
+      "return": 11809
+    },
+    {
+      "id": 8,
+      "client": 0,
+      "type": "write",
+      "value": 4,
+      "call": 12057,
+      "return": 12060
+    },
+    {
+      "id": 9,
+      "client": 0,
+      "type": "write",
+      "value": 5,
+      "call": 12914,
+      "return": 12916
+    },
+    {
+      "id": 10,
+      "client": 3,
+      "type": "write",
+      "value": 303,
+      "call": 13198,
+      "return": 13199
+    },
+    {
+      "id": 11,
+      "client": 2,
+      "type": "read",
+      "value": 0,
+      "call": 14088,
+      "return": 14090
+    },
+    {
+      "id": 12,
+      "client": 2,
+      "type": "write",
+      "value": 203,
+      "call": 16174,
+      "return": 16192
+    },
+    {
+      "id": 13,
+      "client": 0,
+      "type": "write",
+      "value": 6,
+      "call": 16188,
+      "return": 16196
+    },
+    {
+      "id": 14,
+      "client": 1,
+      "type": "write",
+      "value": 103,
+      "call": 19647,
+      "return": 19649
+    },
+    {
+      "id": 15,
+      "client": 3,
+      "type": "write",
+      "value": 304,
+      "call": 20936,
+      "return": 20938
+    },
+    {
+      "id": 16,
+      "client": 2,
+      "type": "read",
+      "value": 0,
+      "call": 25533,
+      "return": 25533
+    },
+    {
+      "id": 17,
+      "client": 3,
+      "type": "write",
+      "value": 305,
+      "call": 29218,
+      "return": 29221
+    },
+    {
+      "id": 18,
+      "client": 1,
+      "type": "read",
+      "value": 0,
+      "call": 29713,
+      "return": 29714
+    },
+    {
+      "id": 19,
+      "client": 2,
+      "type": "read",
+      "value": 0,
+      "call": 34497,
+      "return": 34497
+    },
+    {
+      "id": 20,
+      "client": 2,
+      "type": "write",
+      "value": 206,
+      "call": 36475,
+      "return": 36517
+    },
+    {
+      "id": 21,
+      "client": 3,
+      "type": "read",
+      "value": 0,
+      "call": 37389,
+      "return": 37389
+    },
+    {
+      "id": 22,
+      "client": 1,
+      "type": "write",
+      "value": 105,
+      "call": 38954,
+      "return": 38956
+    },
+    {
+      "id": 23,
+      "client": 1,
+      "type": "write",
+      "value": 106,
+      "call": 49062,
+      "return": 49067
+    }
+  ]
+}

@@ -41,10 +41,28 @@ func Explain(h *history.History, matchers []PatternMatcher, timeout time.Duratio
 	}
 
 	for _, matcher := range matchers {
-		if expl, ok := matcher.Match(rt); ok {
-			expl.Witness = minimize.DDMin(h, patternPredicate(matcher, timeout))
+		if _, ok := matcher.Match(rt); !ok {
+			continue
+		}
+		// Minimize first, then re-run the matcher on the minimized
+		// history so the Conflicts/Summary text references the same
+		// ops as the Witness.
+		witness := minimize.DDMin(h, patternPredicate(matcher, timeout))
+		wm, wops, err := model.SelectModel(witness)
+		if err != nil {
+			return nil, err
+		}
+		wrt := checker.Check(wm, wops, witness, timeout)
+		expl, ok := matcher.Match(wrt)
+		if !ok {
+			// Predicate guaranteed this would still match; if it
+			// doesn't, fall back to the unminimized result.
+			expl, _ = matcher.Match(rt)
+			expl.Witness = h
 			return expl, nil
 		}
+		expl.Witness = witness
+		return expl, nil
 	}
 
 	// Fallback: non-linearizable, no pattern fit.
