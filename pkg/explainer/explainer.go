@@ -6,6 +6,7 @@ import (
 
 	"github.com/Ramana1908/whynot/pkg/checker"
 	"github.com/Ramana1908/whynot/pkg/history"
+	"github.com/Ramana1908/whynot/pkg/minimize"
 	"github.com/Ramana1908/whynot/pkg/model"
 )
 
@@ -41,6 +42,7 @@ func Explain(h *history.History, matchers []PatternMatcher, timeout time.Duratio
 
 	for _, matcher := range matchers {
 		if expl, ok := matcher.Match(rt); ok {
+			expl.Witness = minimize.DDMin(h, patternPredicate(matcher, timeout))
 			return expl, nil
 		}
 	}
@@ -51,6 +53,25 @@ func Explain(h *history.History, matchers []PatternMatcher, timeout time.Duratio
 		Witness: h,
 		Summary: fmt.Sprintf("History is non-linearizable; no pattern in the catalogue fit (%d blocked op(s)).", countBlocked(rt)),
 	}, nil
+}
+
+// patternPredicate yields a minimize.Predicate that holds on a
+// sub-history iff the sub-history is non-linearizable AND the given
+// matcher still fires on it. This is the pipeline-default predicate:
+// it preserves the matched classification through minimization.
+func patternPredicate(matcher PatternMatcher, timeout time.Duration) minimize.Predicate {
+	return func(sub *history.History) bool {
+		m, ops, err := model.SelectModel(sub)
+		if err != nil {
+			return false
+		}
+		rt := checker.Check(m, ops, sub, timeout)
+		if rt.Result != checker.Illegal {
+			return false
+		}
+		_, ok := matcher.Match(rt)
+		return ok
+	}
 }
 
 func countBlocked(rt *checker.RejectionTrace) int {
