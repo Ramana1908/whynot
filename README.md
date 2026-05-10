@@ -75,6 +75,50 @@ The returned `*whynot.Explanation` has `Verdict`, `Pattern`, `Summary`,
 everything the CLI prints, as plain Go fields you can route into your
 own assertion or logging code.
 
+### Already using Porcupine?
+
+If your project already produces `[]porcupine.Operation` from your own
+client instrumentation, the `pkg/adapter/porcupine` package converts it
+straight into a whynot history — no need to re-instrument.
+
+```go
+import (
+    "github.com/Ramana1908/whynot"
+    pcpadapter "github.com/Ramana1908/whynot/pkg/adapter/porcupine"
+)
+
+// 1. You already have these from your existing Porcupine setup:
+var ops []porcupine.Operation = myClient.RecordedOps()
+
+// 2. Translate to a whynot history. RegisterTranslator/KVTranslator
+//    work out of the box if you used whynot's own model.Register or
+//    model.KV; otherwise pass a custom Translator.
+h, err := pcpadapter.FromOperations(ops, "register", 0, pcpadapter.RegisterTranslator)
+if err != nil {
+    panic(err)
+}
+
+// 3. Explain.
+expl, _ := whynot.Explain(h)
+```
+
+For a custom Porcupine model, supply a translator that decodes your
+`Operation.Input` / `Output` into `(read|write, value, key)`:
+
+```go
+tr := func(op porcupine.Operation) (history.OpKind, int, string, error) {
+    in := op.Input.(MyInput)
+    if in.IsRead {
+        return history.OpRead, op.Output.(int), "", nil
+    }
+    return history.OpWrite, in.Value, "", nil
+}
+h, _ := pcpadapter.FromOperations(ops, "register", 0, tr)
+```
+
+Op IDs are taken from `Operation.Metadata` when it's an `int`, otherwise
+the slice index. Output is sorted by `Call` time.
+
 ### As a CLI (any language)
 
 ```sh
